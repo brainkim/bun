@@ -7653,6 +7653,7 @@ pub const PackageManager = struct {
                 }
 
                 this.do.update_to_latest = cli.latest;
+                this.do.update_interactive = cli.interactive;
 
                 if (cli.positionals.len > 0) {
                     this.positionals = cli.positionals;
@@ -7739,6 +7740,7 @@ pub const PackageManager = struct {
             summary: bool = true,
             trust_dependencies_from_args: bool = false,
             update_to_latest: bool = false,
+            update_interactive: bool = false,
             analyze: bool = false,
         };
 
@@ -9649,6 +9651,7 @@ pub const PackageManager = struct {
     pub const update_params: []const ParamType = &(shared_params ++ [_]ParamType{
         clap.parseParam("--latest                              Update packages to their latest versions") catch unreachable,
         clap.parseParam("<POS> ...                         \"name\" of packages to update") catch unreachable,
+        clap.parseParam("-i, --interactive                     Choose which packages to update interactively") catch unreachable,
     });
 
     pub const pm_params: []const ParamType = &(shared_params ++ [_]ParamType{
@@ -9744,6 +9747,7 @@ pub const PackageManager = struct {
         trusted: bool = false,
         no_summary: bool = false,
         latest: bool = false,
+        interactive: bool = false,
         // json_output: bool = false,
         filters: []const string = &.{},
 
@@ -10274,6 +10278,7 @@ pub const PackageManager = struct {
 
             if (comptime subcommand == .update) {
                 cli.latest = args.flag("--latest");
+                cli.interactive = args.flag("--interactive");
             }
 
             const specified_backend: ?PackageInstall.Method = brk: {
@@ -10957,6 +10962,11 @@ pub const PackageManager = struct {
             .link, .add, .update => {
                 // `bun update <package>` is basically the same as `bun add <package>`, except
                 // update will not exceed the current dependency range if it exists
+
+                if (subcommand == .update and manager.options.do.update_interactive) {
+                    Output.prettyln("<r><red>error:<r> bun update --interactive is not supported yet", .{});
+                    Global.crash();
+                }
 
                 if (updates.len != 0) {
                     try PackageJSONEditor.edit(
